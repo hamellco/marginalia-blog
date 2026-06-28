@@ -1,0 +1,16 @@
+{
+  "name": "marginalia",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "A custom static blogging engine for Marginalia",
+  "scripts": {
+    "build": "node src/build.mjs",
+    "dev": "node src/dev.mjs",
+    "new:post": "node src/new.mjs post",
+    "new:link": "node src/new.mjs link"
+  },
+  "dependencies": {
+    "marked": "^12.0.2",
+    "gray-matter": "^4.0.3"
+  }
+}
