@@ -19,12 +19,23 @@ export const site = {
   // IANA timezone used to render post timestamps (so EDT/EST is correct
   // no matter where the build runs). e.g. "America/New_York", "America/Chicago".
   timezone: "America/New_York",
+  // Bylines: Mnemosyne supports per-post authors with bio pages. Marginalia
+  // is single-author, so bylines are off — set to true to show "By <author>".
+  showBylines: false,
 };
 
-// Footer version pills. Bump these by hand when you ship changes.
+// Author registry (used by the engine when showBylines is true). Each key is
+// an author slug; posts reference authors by these slugs in frontmatter.
+// Marginalia doesn't use this, but Mnemosyne supports it: clickable names →
+// an author page listing their posts, with a Markdown bio.
+export const authors = {
+  // "griffin": { name: "Griffin D. Hamell", bio: "..." },
+};
+
+// The blogging engine version, shown in the footer pill.
+// Use a trailing letter for stage: b = beta, a = alpha, rc = candidate.
 export const versions = {
-  design:  { codename: "Daedalus",  version: "2.1" },
-  backend: { codename: "Mnemosyne", version: "4.0" },
+  engine: { codename: "Mnemosyne", version: "0.6b" },
 };
 
 // The glyph used for permalinks throughout the site.

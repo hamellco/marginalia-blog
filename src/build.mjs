@@ -13,7 +13,7 @@ import { marked } from "marked";
 import { site } from "./config.mjs";
 import { css } from "./styles.mjs";
 import { fetchOG } from "./og.mjs";
-import { page, articleFull, linkPost, feedItem, colophonPage, indexesPage } from "./templates.mjs";
+import { page, articleFull, linkPost, feedItem, colophonPage, indexesPage, archivesPage, enginePage } from "./templates.mjs";
 import { renderRSS } from "./rss.mjs";
 import { checkHealth } from "./health.mjs";
 
@@ -22,14 +22,78 @@ const PAGES_DIR = "pages";
 const OUT_DIR = "dist";
 const PUBLIC_DIR = "public";
 
-marked.setOptions({ mangle: false, headerIds: false });
+// ── Mnemosyne Markdown: a deliberate subset of CommonMark ──────
+// We keep marked (battle-tested, build-time only, ships nothing to
+// readers) but turn OFF features we don't want, so the authoring
+// spec is tight and predictable:
+//   ON : paragraphs, bold, italic, links, images (w/ caption+align),
+//        blockquotes, headings, inline code, lists, code blocks, hr
+//   OFF: GitHub tables, raw inline HTML, bare-URL autolinking
+marked.setOptions({
+  mangle: false,
+  headerIds: false,
+  gfm: false,        // no GitHub extensions (tables, strikethrough, autolinks)
+  breaks: false,
+});
+
+// Custom image rendering: alt = caption, optional title = alignment.
+//   ![A quiet street](street.jpg)            → centered + caption
+//   ![A quiet street](street.jpg "left")     → float left, text wraps
+//   ![A quiet street](street.jpg "right")    → float right, text wraps
+const renderer = {
+  image(href, title, text) {
+    const align = (title || "").toLowerCase().trim();
+    const alignClass =
+      align === "left" ? "fig--left" :
+      align === "right" ? "fig--right" : "fig--center";
+    const caption = text
+      ? `<figcaption class="fig-caption">${text}</figcaption>`
+      : "";
+    return `<figure class="fig ${alignClass}">` +
+      `<img src="${href}" alt="${text || ""}" loading="lazy">` +
+      `${caption}</figure>`;
+  },
+};
+marked.use({ renderer });
+
+const STOPWORDS = new Set([
+  "a","an","and","the","of","to","in","on","for","with","but","or","nor",
+  "is","are","was","were","be","by","at","as","it","its","this","that",
+  "why","how","what","when","from","into","over","under","why",
+]);
 
 function slugify(s) {
   return String(s).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
 
-function excerptFrom(html, max = 180) {
-  const text = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+// Shorter, smarter slug for post URLs: drop filler words, keep the
+// meaningful ones, cap to ~5 words / 50 chars.
+function shortSlug(s) {
+  const words = String(s)
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .split(/[\s-]+/)
+    .filter((w) => w && !STOPWORDS.has(w));
+  let slug = "";
+  for (const w of words) {
+    const next = slug ? slug + "-" + w : w;
+    if (next.length > 50) break;
+    slug = next;
+    if (slug.split("-").length >= 5) break;
+  }
+  return slug || slugify(s);
+}
+
+function excerptFrom(html, max = 360) {
+  // Use the first paragraph of the post for a fuller feed preview.
+  const firstPara = html.match(/<p>(.*?)<\/p>/s);
+  const source = firstPara ? firstPara[1] : html;
+  let text = source.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  // Decode entities so the excerpt isn't double-escaped when re-rendered.
+  text = text
+    .replace(/&#39;/g, "'").replace(/&#x27;/g, "'")
+    .replace(/&quot;/g, '"').replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<").replace(/&gt;/g, ">");
   return text.length > max ? text.slice(0, max).replace(/\s+\S*$/, "") + "…" : text;
 }
 
@@ -43,7 +107,7 @@ async function loadPosts() {
     const { data, content } = matter(raw);
 
     const type = data.type === "link" ? "link" : "article";
-    const slug = data.slug || slugify(data.title || path.basename(file, ".md"));
+    const slug = data.slug || shortSlug(data.title || path.basename(file, ".md"));
     const date = data.date ? new Date(data.date) : new Date();
     const permalink =
       type === "link" ? `/links/${slug}/` : `/posts/${slug}/`;
@@ -105,6 +169,7 @@ function renderPost(post) {
     css,
     body,
     showProgress: post.type === "article",
+    wide: post.type === "article",
   });
 }
 
@@ -113,7 +178,7 @@ function renderCategory(category, posts) {
   return page({
     title: category,
     css,
-    body: `<p class="kicker">${category}</p>\n${items}`,
+    body: items,
   });
 }
 
@@ -200,6 +265,35 @@ async function build() {
 
   // Standalone pages: Colophon + Indexes
   await buildStandalonePages();
+
+  // Archives — textual list of every post
+  await writePage("archives", page({
+    title: "Archives", css, body: archivesPage(posts),
+  }));
+
+  // Engine — Mnemosyne features + version history
+  await writePage("engine", page({
+    title: "Mnemosyne", css, body: enginePage({
+      features: [
+        { title: "Markdown engine", desc: "A tight CommonMark subset compiled to static HTML." },
+        { title: "Link scraper", desc: "Pulls Open Graph title, image, and author at build time." },
+        { title: "Theme system", desc: "Monochrome light/dark from a single token set." },
+        { title: "Link heartbeat", desc: "Build-time reachability check for Index links." },
+        { title: "Reading progress", desc: "A hairline bar measured against the article." },
+        { title: "Optional bylines", desc: "Multi-author support with per-author pages, off by default." },
+        { title: "Smart slugs", desc: "Short, readable URLs generated from the title." },
+        { title: "RSS + archives", desc: "A feed and a full textual index, generated automatically." },
+      ],
+      history: [
+        { version: "0.6b", notes: "Tight Markdown subset, optional bylines, contrast pass, wider reading view, short slugs." },
+        { version: "0.5b", notes: "Engine page, single footer pill, archives, image captions." },
+        { version: "0.4b", notes: "Colophon and Indexes pages; link health checks." },
+        { version: "0.3b", notes: "Boxed posts with notched badges; centered permalinks." },
+        { version: "0.2b", notes: "Monochrome themes, three-font system, link posts." },
+        { version: "0.1b", notes: "First build: Markdown posts, drop cap, RSS." },
+      ],
+    }),
+  }));
 
   // Copy /public assets (favicon, images, etc.) into dist if present.
   if (existsSync(PUBLIC_DIR)) {

@@ -91,18 +91,22 @@ export function masthead() {
   </header>`;
 }
 
-// ── Version pills (footer) ────────────────────────────────────
-export function versionPills() {
-  const pill = (label, { codename, version }) => `
-    <span class="pill">
-      <span class="dot"></span>
-      <span class="lbl">${esc(label)}</span>
-      <span class="ver">${esc(codename)} v${esc(version)}</span>
-    </span>`;
+// ── Footer ────────────────────────────────────────────────────
+export function siteFooter() {
+  const eng = versions.engine || { codename: "Mnemosyne", version: "0.5b" };
+  const year = new Date().getFullYear();
   return `
-  <footer class="pills">
-    ${pill("Design", versions.design)}
-    ${pill("Backend", versions.backend)}
+  <footer class="site-footer">
+    <nav class="backmatter">
+      <a href="/archives/">Archives</a>
+      <a href="/feed.xml">RSS</a>
+    </nav>
+    <a class="engine-pill" href="/engine/">
+      <span class="dot"></span>
+      <span class="lbl">Powered by</span>
+      <span class="ver">${esc(eng.codename)} v${esc(eng.version)}</span>
+    </a>
+    <p class="copyright">© ${year} Marginalia is a blog written by ${esc(site.author)} / Hamellco.<br>All Rights Reserved.</p>
   </footer>`;
 }
 
@@ -112,13 +116,16 @@ export function articleFull(post) {
     post.updated && new Date(post.updated) > new Date(post.date)
       ? `<br>Updated ${esc(fmtStamp(post.updated))}`
       : "";
+  const bylineLine = site.showBylines
+    ? `<p class="byline">By ${renderAuthors(post)}</p>`
+    : "";
   return `
   <article class="post-box article">
     ${notchBadge(penBadgeSVG, "Article")}
     <p class="kicker">${categoryLink(post.category)}</p>
     <h1 class="headline">${esc(post.title)}</h1>
     <div class="byline-block">
-      <p class="byline">By <a href="/about/">${esc(site.author)}</a></p>
+      ${bylineLine}
       <p class="timestamps">Posted ${esc(fmtStamp(post.date))}${updated}</p>
     </div>
     <div class="article-body">
@@ -126,6 +133,22 @@ export function articleFull(post) {
     </div>
     ${permalinkRow(post.permalink)}
   </article>`;
+}
+
+// Render one or more authors as linked names (engine multi-author support).
+function renderAuthors(post) {
+  const list = Array.isArray(post.authors) ? post.authors
+    : post.author ? [post.author] : [site.author];
+  const linked = list.map((a) => {
+    const slug = slugifyName(a);
+    return `<a href="/author/${slug}/">${esc(a)}</a>`;
+  });
+  if (linked.length === 1) return linked[0];
+  if (linked.length === 2) return `${linked[0]} and ${linked[1]}`;
+  return linked.slice(0, -1).join(", ") + ", and " + linked[linked.length - 1];
+}
+function slugifyName(name) {
+  return String(name).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
 
 // ── Link post ─────────────────────────────────────────────────
@@ -199,7 +222,6 @@ function articleCard(post) {
 export function colophonPage({ title, html }) {
   return `
   <article class="page page--colophon">
-    <h1 class="page-title">${esc(title)}</h1>
     <div class="page-body article-body">
       ${html}
     </div>
@@ -236,14 +258,65 @@ export function indexesPage({ title, intro, sections }) {
 
   return `
   <article class="page page--indexes">
-    <h1 class="page-title">${esc(title)}</h1>
     ${intro ? `<p class="page-intro">${esc(intro)}</p>` : ""}
     ${sections.map(renderSection).join("\n")}
   </article>`;
 }
 
+// Archives: a plain textual list of all posts — date · type · title.
+export function archivesPage(posts) {
+  const fmtArchiveDate = (d) =>
+    new Date(d).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "2-digit" });
+  const rows = posts.map((p) => {
+    const type = p.type === "link" ? "Link" : "Long Form";
+    const title = p.title || (p.og && p.og.title) || "Untitled";
+    return `
+    <li class="archive-row">
+      <span class="archive-date">${fmtArchiveDate(p.date)}</span>
+      <span class="archive-type">${type}</span>
+      <a class="archive-title" href="${esc(p.permalink)}">${esc(title)}</a>
+    </li>`;
+  }).join("\n");
+  return `
+  <article class="page page--archives">
+    <ul class="archive-list">
+      ${rows || `<li class="archive-empty">No posts yet.</li>`}
+    </ul>
+  </article>`;
+}
+
+// Engine page: Mnemosyne feature squares + version history, monospace.
+export function enginePage({ features, history }) {
+  const eng = versions.engine || { codename: "Mnemosyne", version: "0.5b" };
+  const squares = features.map((f) => `
+    <div class="engine-feature">
+      <h3 class="engine-feature-title">${esc(f.title)}</h3>
+      <p class="engine-feature-desc">${esc(f.desc)}</p>
+    </div>`).join("\n");
+  const log = history.map((h) => `
+    <div class="engine-version">
+      <span class="engine-version-tag">v${esc(h.version)}</span>
+      <span class="engine-version-notes">${esc(h.notes)}</span>
+    </div>`).join("\n");
+  return `
+  <article class="page page--engine">
+    <header class="engine-head">
+      <h1 class="engine-name">${esc(eng.codename)}</h1>
+      <p class="engine-ver">v${esc(eng.version)}</p>
+      <p class="engine-tagline">The static engine that builds Marginalia.</p>
+    </header>
+    <section class="engine-grid">
+      ${squares}
+    </section>
+    <section class="engine-history">
+      <h2 class="engine-history-title">Version history</h2>
+      ${log}
+    </section>
+  </article>`;
+}
+
 // ── Page shell ────────────────────────────────────────────────
-export function page({ title, body, css, showProgress = false }) {
+export function page({ title, body, css, showProgress = false, wide = false }) {
   const pageTitle = title ? `${title} — ${site.title}` : site.title;
   return `<!DOCTYPE html>
 <html lang="en" data-theme="${site.defaultTheme}">
@@ -254,16 +327,19 @@ export function page({ title, body, css, showProgress = false }) {
 <meta name="description" content="${esc(site.tagline)}">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT@9..144,400;9..144,500;9..144,600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400;1,6..72,500&family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT@9..144,400;9..144,500;9..144,600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400;1,6..72,500&family=Space+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>${css}</style>
 </head>
 <body>
-${showProgress ? `<div class="progress-track"><div class="progress-fill" id="pfill"></div></div>` : ""}
+${wide ? `<div class="reading-bar" id="readingBar">
+  <span class="reading-bar-brand">${esc(site.title)}<span class="dot">.</span></span>
+  <div class="reading-bar-fill" id="pfill"></div>
+</div>` : (showProgress ? `<div class="progress-track"><div class="progress-fill" id="pfill"></div></div>` : "")}
 ${masthead()}
-<main class="wrap">
+<main class="wrap${wide ? " wrap--wide" : ""}">
 ${body}
 </main>
-${versionPills()}
+${siteFooter()}
 <script>${clientJS(showProgress)}</script>
 </body>
 </html>`;
@@ -286,10 +362,13 @@ function clientJS(showProgress) {
   });
   ${showProgress ? `
   var fill=document.getElementById('pfill'),art=document.querySelector('main article');
+  var bar=document.getElementById('readingBar');
   if(fill&&art){
     var upd=function(){
       var r=art.getBoundingClientRect(),start=window.scrollY+r.top,end=start+r.height-window.innerHeight;
       fill.style.width=Math.min(100,Math.max(0,((window.scrollY-start)/Math.max(1,end-start))*100))+'%';
+      // Reveal the dark reading bar once the reader scrolls past the masthead.
+      if(bar){ if(window.scrollY>120){bar.classList.add('is-visible');} else {bar.classList.remove('is-visible');} }
     };
     window.addEventListener('scroll',upd,{passive:true});window.addEventListener('resize',upd);upd();
   }` : ""}
