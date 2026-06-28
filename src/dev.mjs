@@ -55,7 +55,7 @@ const server = createServer(async (req, res) => {
 
 // Initial build, then watch.
 runBuild();
-for (const dir of ["posts", "src"]) {
+for (const dir of ["posts", "pages", "src"]) {
   try {
     watch(dir, { recursive: true }, () => {
       console.log(`\n↻ change in ${dir}/ — rebuilding`);

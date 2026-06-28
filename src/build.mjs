@@ -13,10 +13,12 @@ import { marked } from "marked";
 import { site } from "./config.mjs";
 import { css } from "./styles.mjs";
 import { fetchOG } from "./og.mjs";
-import { page, articleFull, linkPost, feedItem } from "./templates.mjs";
+import { page, articleFull, linkPost, feedItem, colophonPage, indexesPage } from "./templates.mjs";
 import { renderRSS } from "./rss.mjs";
+import { checkHealth } from "./health.mjs";
 
 const POSTS_DIR = "posts";
+const PAGES_DIR = "pages";
 const OUT_DIR = "dist";
 const PUBLIC_DIR = "public";
 
@@ -88,7 +90,7 @@ async function writePage(routePath, html) {
 function renderFeed(posts) {
   const items = posts
     .map((p) => feedItem(p))
-    .join(`\n<hr class="feed-sep">\n`);
+    .join("\n");
   return page({
     title: "",
     css,
@@ -107,12 +109,62 @@ function renderPost(post) {
 }
 
 function renderCategory(category, posts) {
-  const items = posts.map((p) => feedItem(p)).join(`\n<hr class="feed-sep">\n`);
+  const items = posts.map((p) => feedItem(p)).join("\n");
   return page({
     title: category,
     css,
     body: `<p class="kicker">${category}</p>\n${items}`,
   });
+}
+
+// ── Standalone pages (Colophon, Indexes) ─────────────────────
+async function buildStandalonePages() {
+  if (!existsSync(PAGES_DIR)) return;
+
+  // Colophon (about)
+  if (existsSync(path.join(PAGES_DIR, "colophon.md"))) {
+    const raw = await readFile(path.join(PAGES_DIR, "colophon.md"), "utf8");
+    const { data, content } = matter(raw);
+    const html = page({
+      title: data.title || "Colophon",
+      css,
+      body: colophonPage({
+        title: data.title || "Colophon",
+        html: marked.parse(content.trim()),
+      }),
+    });
+    await writePage("colophon", html);
+  }
+
+  // Indexes (curated links with build-time status dots)
+  if (existsSync(path.join(PAGES_DIR, "indexes.md"))) {
+    const raw = await readFile(path.join(PAGES_DIR, "indexes.md"), "utf8");
+    const { data } = matter(raw);
+    const sections = data.sections || [];
+
+    // Check each link's reachability (cached per day).
+    let count = 0;
+    for (const s of sections) {
+      for (const l of s.links || []) {
+        process.stdout.write(`  · checking ${l.url} … `);
+        l.status = await checkHealth(l.url);
+        console.log(l.status);
+        count++;
+      }
+    }
+
+    const html = page({
+      title: data.title || "Indexes",
+      css,
+      body: indexesPage({
+        title: data.title || "Indexes",
+        intro: data.intro || "",
+        sections,
+      }),
+    });
+    await writePage("indexes", html);
+    console.log(`  indexes: ${count} link(s) checked`);
+  }
 }
 
 async function build() {
@@ -145,6 +197,9 @@ async function build() {
 
   // RSS feed
   await writeFile(path.join(OUT_DIR, "feed.xml"), renderRSS(posts));
+
+  // Standalone pages: Colophon + Indexes
+  await buildStandalonePages();
 
   // Copy /public assets (favicon, images, etc.) into dist if present.
   if (existsSync(PUBLIC_DIR)) {

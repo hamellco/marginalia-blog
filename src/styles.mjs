@@ -40,8 +40,22 @@ a{color:inherit;}
 .wrap{max-width:660px;margin:0 auto;padding:3rem 1.5rem 6rem;}
 
 /* shared permalink glyph */
-.permalink{color:var(--ink);text-decoration:none;font-size:16px;line-height:1;padding:4px;border-radius:6px;}
+.permalink{color:var(--ink);text-decoration:none;line-height:1;padding:4px;border-radius:6px;}
 .permalink:hover{background:var(--surface);}
+
+/* shared post box — every post sits in its own bordered frame */
+.post-box{position:relative;border:.5px solid var(--line-2);border-radius:14px;padding:2rem 1.8rem 1.4rem;background:var(--bg);margin:0 0 2rem;}
+.post-box:last-of-type{margin-bottom:0;}
+
+/* badge notched into the top border: border–icon–border illusion.
+   The swatch background masks the border line behind the icon. */
+.notch-badge{position:absolute;top:0;left:50%;transform:translate(-50%,-50%);
+  width:34px;height:24px;background:var(--bg);display:flex;align-items:center;justify-content:center;}
+.notch-badge svg{width:17px;height:17px;stroke:var(--ink);fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;}
+
+/* centered permalink on its own line at the foot of each box */
+.permalink-row{margin:1.4rem 0 0;display:flex;justify-content:center;}
+.permalink-row .permalink{font-size:18px;}
 
 /* kicker / category */
 .kicker{font-family:var(--sans);font-size:11px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;margin:0 0 .9rem;}
@@ -66,12 +80,8 @@ a{color:inherit;}
 .article-body > p:first-of-type::first-letter{float:left;font-family:var(--serif);font-weight:600;font-size:5.1em;line-height:.7;padding:.05em .09em 0 0;color:var(--ink);font-variation-settings:'opsz' 144,'SOFT' 0;}
 .article-body a{color:var(--ink);text-decoration:none;border-bottom:1px solid var(--line-2);}
 .article-body a:hover{border-bottom-color:var(--ink);}
-.post-permalink{margin:1.6rem 0 0;display:flex;justify-content:flex-end;}
 
-/* link post */
-.link-card{position:relative;border:.5px solid var(--line-2);border-radius:14px;padding:1.6rem 1.8rem;background:var(--bg);}
-.link-badge{position:absolute;top:-11px;left:22px;width:32px;height:22px;background:var(--bg);border:.5px solid var(--line-2);border-radius:6px;display:flex;align-items:center;justify-content:center;}
-.link-badge svg{width:15px;height:15px;stroke:var(--ink);fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;}
+/* link post (border + badge now handled by .post-box / .notch-badge) */
 .lc-head{display:flex;justify-content:space-between;align-items:baseline;font-family:var(--sans);margin:.3rem 0 1.1rem;gap:1rem;}
 .lc-author{font-size:12.5px;font-weight:500;color:var(--ink);letter-spacing:.02em;}
 .lc-author span{color:var(--faint);font-weight:400;}
@@ -89,20 +99,37 @@ a{color:inherit;}
 .lc-thoughts{font-family:var(--read);font-size:14px;color:var(--muted);margin:1.1rem 0 0;display:flex;align-items:center;gap:8px;}
 .lc-thoughts .by{color:var(--faint);font-style:italic;}
 .lc-thoughts .name{color:var(--ink);font-style:italic;}
-.lc-thoughts .permalink{margin-left:auto;}
 
-/* feed */
-.feed-article{padding:0 0 2.5rem;margin:0 0 2.5rem;border-bottom:.5px solid var(--line);}
+/* feed (boxed previews) */
 .feed-headline{font-family:var(--serif);font-weight:600;font-size:28px;line-height:1.1;letter-spacing:-.015em;margin:0 0 .5rem;font-variation-settings:'opsz' 60,'SOFT' 0;}
 .feed-headline a{color:var(--ink);text-decoration:none;}
 .feed-headline a:hover{text-decoration:underline;text-underline-offset:3px;}
-.feed-dek{font-size:17px;line-height:1.55;color:var(--muted);margin:0 0 .6rem;}
-.feed-meta{font-family:var(--sans);font-size:12px;color:var(--faint);margin:0;display:flex;align-items:center;gap:10px;}
-.feed-sep{border:0;border-top:.5px solid var(--line);margin:2.5rem 0;}
+.feed-dek{font-size:17px;line-height:1.55;color:var(--muted);margin:0;}
+
+/* standalone pages (Colophon, Indexes) */
+.page-title{font-family:var(--sans);font-weight:600;font-size:clamp(28px,5vw,40px);line-height:1.05;letter-spacing:-.01em;margin:0 0 1.4rem;color:var(--ink);}
+.page-intro{font-family:var(--read);font-size:19px;line-height:1.6;color:var(--ink-2);margin:0 0 2.4rem;}
+.page--colophon .page-body > p:first-of-type::first-letter{float:left;font-family:var(--serif);font-weight:600;font-size:5.1em;line-height:.7;padding:.05em .09em 0 0;color:var(--ink);font-variation-settings:'opsz' 144,'SOFT' 0;}
+
+/* indexes: sections of curated links with status dots */
+.index-section{margin:0 0 2.6rem;}
+.index-section-title{font-family:var(--sans);font-size:12px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:0 0 .4rem;}
+.index-section-intro{font-family:var(--read);font-size:15px;line-height:1.55;color:var(--faint);margin:0 0 1rem;}
+.index-list{list-style:none;margin:0;padding:0;}
+.index-link{display:flex;align-items:baseline;gap:10px;padding:.5rem 0;border-bottom:.5px solid var(--line);font-family:var(--read);}
+.index-link:last-child{border-bottom:0;}
+.index-link-title{font-size:17px;color:var(--ink);text-decoration:none;border-bottom:1px solid var(--line-2);}
+.index-link-title:hover{border-bottom-color:var(--ink);}
+.index-link-note{font-size:14px;color:var(--muted);}
+
+/* status dot — matches the monochrome system */
+.status{flex:0 0 auto;width:8px;height:8px;border-radius:50%;align-self:center;position:relative;top:1px;}
+.status.is-up{background:var(--ink);}
+.status.is-down{background:transparent;border:1.5px solid var(--line-2);}
+.status.is-unknown{background:transparent;border:1.5px dotted var(--faint);}
 
 /* version pills */
-.pills{max-width:660px;margin:0 auto;display:flex;gap:10px;flex-wrap:wrap;padding:1.5rem 1.5rem 3rem;}
-.pill{font-family:var(--sans);font-size:11px;letter-spacing:.03em;background:var(--pill-bg);color:var(--ink);border:.5px solid var(--line-2);border-radius:999px;padding:6px 13px;display:inline-flex;align-items:center;gap:7px;}
+.pills{max-width:660px;margin:0 auto;display:flex;gap:10px;flex-wrap:wrap;padding:1.5rem 1.5rem 3rem;}.pill{font-family:var(--sans);font-size:11px;letter-spacing:.03em;background:var(--pill-bg);color:var(--ink);border:.5px solid var(--line-2);border-radius:999px;padding:6px 13px;display:inline-flex;align-items:center;gap:7px;}
 .pill .dot{width:5px;height:5px;border-radius:50%;background:var(--muted);}
 .pill .lbl{color:var(--faint);text-transform:uppercase;letter-spacing:.08em;font-size:10px;}
 .pill .ver{color:var(--ink);font-weight:500;}

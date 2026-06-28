@@ -40,15 +40,33 @@ function fmtShort(d) {
   return `${date.getMonth() + 1}/${date.getDate()}/${yy}`;
 }
 
-// The custom link-post badge (bracket + outbound arrow).
+// The link-post badge: a clean "external link" mark (box with an
+// arrow leaving the top-right). Sized to match the pen badge.
 const linkBadgeSVG = `
   <svg viewBox="0 0 24 24" aria-hidden="true">
-    <path d="M7 4H4v16M17 20h3V4"/><path d="M10 14l5-5M11 9h4v4"/>
+    <path d="M13 4h7v7"/><path d="M20 4l-9 9"/>
+    <path d="M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4"/>
   </svg>`;
+
+// The article badge (a pen/nib).
+const penBadgeSVG = `
+  <svg viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M4 20l4-1L19 8a2 2 0 0 0-3-3L5 16l-1 4z"/><path d="M14 6l3 3"/>
+  </svg>`;
+
+// A badge notched into the top border (border–icon–border illusion).
+function notchBadge(svg, label) {
+  return `<span class="notch-badge" title="${label}" aria-label="${label}">${svg}</span>`;
+}
 
 // Permalink — icon only, no text, right-aligned by its container.
 function permalink(href) {
   return `<a class="permalink" href="${esc(href)}" aria-label="Permalink to this post">${permalinkGlyph}</a>`;
+}
+
+// Centered permalink on its own line at the foot of a post box.
+function permalinkRow(href) {
+  return `<p class="permalink-row">${permalink(href)}</p>`;
 }
 
 function categoryLink(category) {
@@ -64,6 +82,8 @@ export function masthead() {
     <a class="brand" href="/">${esc(site.title)}<span class="dot">.</span></a>
     <nav class="nav">
       <a href="${esc(site.navHref)}">${esc(site.navLabel)}</a>
+      <a href="/colophon/">Colophon</a>
+      <a href="/indexes/">Indexes</a>
       <button class="toggle" id="themeBtn" aria-label="Toggle light or dark theme" type="button">
         <span aria-hidden="true">◐</span> <span id="themeLbl">Dark</span>
       </button>
@@ -93,7 +113,8 @@ export function articleFull(post) {
       ? `<br>Updated ${esc(fmtStamp(post.updated))}`
       : "";
   return `
-  <article class="article">
+  <article class="post-box article">
+    ${notchBadge(penBadgeSVG, "Article")}
     <p class="kicker">${categoryLink(post.category)}</p>
     <h1 class="headline">${esc(post.title)}</h1>
     <div class="byline-block">
@@ -102,8 +123,8 @@ export function articleFull(post) {
     </div>
     <div class="article-body">
       ${post.html}
-      <p class="post-permalink">${permalink(post.permalink)}</p>
     </div>
+    ${permalinkRow(post.permalink)}
   </article>`;
 }
 
@@ -131,8 +152,8 @@ export function linkPost(post) {
   const introPart = post.intro ? post.introHtml : "";
 
   return `
-  <article class="link-card">
-    <span class="link-badge" title="Link post" aria-label="Link post">${linkBadgeSVG}</span>
+  <article class="post-box link-card">
+    ${notchBadge(linkBadgeSVG, "Link post")}
     <div class="lc-head">
       <span class="lc-author">${authorLine}</span>
       <span class="lc-date">${esc(fmtShort(post.date))}</span>
@@ -148,9 +169,9 @@ export function linkPost(post) {
       <p class="lc-thoughts">
         <span class="by">Thoughts by</span>
         <span class="name">${esc(site.author)}</span>
-        ${permalink(post.permalink)}
       </p>
     </div>
+    ${permalinkRow(post.permalink)}
   </article>`;
 }
 
@@ -159,14 +180,65 @@ export function feedItem(post) {
   return post.type === "link" ? linkPost(post) : articleCard(post);
 }
 
-// Compact article preview for the feed.
+// Boxed article preview for the feed.
 function articleCard(post) {
   return `
-  <article class="feed-article">
+  <article class="post-box feed-article">
+    ${notchBadge(penBadgeSVG, "Article")}
     <p class="kicker">${categoryLink(post.category)}</p>
     <h2 class="feed-headline"><a href="${esc(post.permalink)}">${esc(post.title)}</a></h2>
     <p class="feed-dek">${esc(post.excerpt || "")}</p>
-    <p class="feed-meta">${esc(fmtLong(post.date))} ${permalink(post.permalink)}</p>
+    ${permalinkRow(post.permalink)}
+  </article>`;
+}
+
+// ── Standalone pages (Colophon = about, Indexes = link list) ──
+
+// A simple Markdown-driven page: sans heading, no kicker, prose body
+// set in the reading serif with a drop cap on the first paragraph.
+export function colophonPage({ title, html }) {
+  return `
+  <article class="page page--colophon">
+    <h1 class="page-title">${esc(title)}</h1>
+    <div class="page-body article-body">
+      ${html}
+    </div>
+  </article>`;
+}
+
+// Status dot: filled = up, hollow = down, faint ring = unknown.
+function statusDot(status) {
+  const cls =
+    status === "up" ? "is-up" : status === "down" ? "is-down" : "is-unknown";
+  const label =
+    status === "up" ? "Online" : status === "down" ? "Unreachable" : "Unknown";
+  return `<span class="status ${cls}" title="${label} (checked at last build)" aria-label="${label}"></span>`;
+}
+
+// Indexes page: sections of curated links, each with a build-time
+// status dot. `sections` is [{ title, intro, links: [{title,url,note,status}] }].
+export function indexesPage({ title, intro, sections }) {
+  const renderLink = (l) => `
+    <li class="index-link">
+      ${statusDot(l.status)}
+      <a class="index-link-title" href="${esc(l.url)}">${esc(l.title)}</a>
+      ${l.note ? `<span class="index-link-note">${esc(l.note)}</span>` : ""}
+    </li>`;
+
+  const renderSection = (s) => `
+    <section class="index-section">
+      <h2 class="index-section-title">${esc(s.title)}</h2>
+      ${s.intro ? `<p class="index-section-intro">${esc(s.intro)}</p>` : ""}
+      <ul class="index-list">
+        ${s.links.map(renderLink).join("\n")}
+      </ul>
+    </section>`;
+
+  return `
+  <article class="page page--indexes">
+    <h1 class="page-title">${esc(title)}</h1>
+    ${intro ? `<p class="page-intro">${esc(intro)}</p>` : ""}
+    ${sections.map(renderSection).join("\n")}
   </article>`;
 }
 
